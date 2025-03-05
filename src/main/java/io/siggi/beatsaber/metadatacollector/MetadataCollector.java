@@ -15,13 +15,18 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static io.siggi.beatsaber.metadatacollector.Util.gson;
+import static io.siggi.beatsaber.metadatacollector.Util.writeInt;
 import static io.siggi.beatsaber.metadatacollector.Util.writeLong;
 import static io.siggi.beatsaber.metadatacollector.Util.writeString;
 
 public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveDataSocket.Listener, OBSSocket.Listener {
+
+    private static final byte[] BSMDC_HEADER = "BSMDC\n".getBytes(StandardCharsets.UTF_8);
+    private static final int FILE_VERSION = 0;
 
     private final Config config;
     private final OBSSocket obsSocket;
@@ -171,6 +176,8 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
             this.currentOutput = target;
             try {
                 out = new FileOutputStream(target);
+                out.write(BSMDC_HEADER);
+                writeInt(out, FILE_VERSION);
                 writeLong(out, System.currentTimeMillis());
             } catch (Exception e) {
                 e.printStackTrace();
