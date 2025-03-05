@@ -20,8 +20,12 @@ public class LiveData implements Timestamped {
     public ELiveDataEventTriggers EventTrigger;
 
     public long UnixTimestamp;
+    public long TimeSinceRecordingStart;
 
     public long getUnixTimestamp() {
         return UnixTimestamp;
+    }
+    public long getTimeSinceRecordingStart() {
+        return TimeSinceRecordingStart;
     }
 }

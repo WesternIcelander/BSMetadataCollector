@@ -27,7 +27,7 @@ import static io.siggi.beatsaber.metadatacollector.Util.timecode;
 public class PostProcessor {
 
     private static final byte[] BSMDC_HEADER = "BSMDC\n".getBytes(StandardCharsets.UTF_8);
-    private static final int MAX_SUPPORTED_VERSION = 0;
+    private static final int MAX_SUPPORTED_VERSION = 1;
 
     public static void process(File file) throws IOException {
         file = file.getAbsoluteFile();
@@ -62,12 +62,15 @@ public class PostProcessor {
             data.startTime = readLong(in);
             while (true) {
                 int type = in.read();
+                long time = fileVersion >= 1 ? readLong(in) : 0L;
                 if (type == -1) break;
                 if (type == 1) {
                     LevelInfo levelInfo = gson.fromJson(readString(in), LevelInfo.class);
+                    levelInfo.TimeSinceRecordingStart = time == 0L ? (levelInfo.UnixTimestamp - data.startTime) : time;
                     data.levelInfos.add(levelInfo);
                 } else if (type == 2) {
                     LiveData liveData = gson.fromJson(readString(in), LiveData.class);
+                    liveData.TimeSinceRecordingStart = time == 0L ? (liveData.UnixTimestamp - data.startTime) : time;
                     data.liveData.add(liveData);
                 }
             }

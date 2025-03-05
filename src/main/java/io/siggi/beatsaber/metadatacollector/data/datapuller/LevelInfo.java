@@ -38,8 +38,12 @@ public class LevelInfo implements Timestamped {
     public String PreviousBSR;
 
     public long UnixTimestamp;
+    public long TimeSinceRecordingStart;
 
     public long getUnixTimestamp() {
         return UnixTimestamp;
+    }
+    public long getTimeSinceRecordingStart() {
+        return TimeSinceRecordingStart;
     }
 }

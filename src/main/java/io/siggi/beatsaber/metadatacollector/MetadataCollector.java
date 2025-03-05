@@ -26,7 +26,7 @@ import static io.siggi.beatsaber.metadatacollector.Util.writeString;
 public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveDataSocket.Listener, OBSSocket.Listener {
 
     private static final byte[] BSMDC_HEADER = "BSMDC\n".getBytes(StandardCharsets.UTF_8);
-    private static final int FILE_VERSION = 0;
+    private static final int FILE_VERSION = 1;
 
     private final Config config;
     private final OBSSocket obsSocket;
@@ -118,6 +118,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
             }
             try {
                 out.write(1);
+                writeLong(out, timeSinceRecordingStart());
                 writeString(out, gson.toJson(levelInfo));
                 if (!matches(lastLevelInfo, levelInfo) && !levelInfo.SongName.isEmpty()) {
                     gameplayWasDetected = true;
@@ -145,6 +146,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
             if (out == null) return;
             try {
                 out.write(2);
+                writeLong(out, timeSinceRecordingStart());
                 writeString(out, gson.toJson(liveData));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -182,6 +184,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            recordingStartTime = System.nanoTime();
             System.out.println("OBS recording started");
             ui.statusTextLabel.setText("Recording");
         }
@@ -222,5 +225,11 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
         } catch (Exception ignored) {
         }
         out = null;
+    }
+
+    private long recordingStartTime = 0L;
+    private long timeSinceRecordingStart() {
+        if (out == null) return 0L;
+        return System.nanoTime() - recordingStartTime / 1_000_000L;
     }
 }
