@@ -112,7 +112,7 @@ public class PostProcessor {
 
     private static <T extends Timestamped> T findItemAfterTimestamp(List<T> items, long notBefore, Predicate<T> checker) {
         for (T t : items) {
-            if (t.getUnixTimestamp() < notBefore) continue;
+            if (t.getTimeSinceRecordingStart() < notBefore) continue;
             if (!checker.test(t)) continue;
             return t;
         }
@@ -122,7 +122,7 @@ public class PostProcessor {
     private static <T extends Timestamped> T findItemBeforeTimestamp(List<T> items, long notAfter) {
         T prevItem = null;
         for (T t : items) {
-            if (t.getUnixTimestamp() > notAfter) return prevItem;
+            if (t.getTimeSinceRecordingStart() > notAfter) return prevItem;
             prevItem = t;
         }
         return prevItem;
@@ -131,8 +131,8 @@ public class PostProcessor {
     private static <T extends Timestamped> List<T> getItemsInRange(List<T> items, long notBefore, long notAfter) {
         List<T> newList = new ArrayList<>();
         for (T t : items) {
-            if (t.getUnixTimestamp() < notBefore) continue;
-            if (t.getUnixTimestamp() > notAfter) break;
+            if (t.getTimeSinceRecordingStart() < notBefore) continue;
+            if (t.getTimeSinceRecordingStart() > notAfter) break;
             newList.add(t);
         }
         return newList;
@@ -142,11 +142,11 @@ public class PostProcessor {
         T prevItem = null;
         long time = startingFrom;
         for (T t : items) {
-            if (t.getUnixTimestamp() < startingFrom) continue;
-            if (t.getUnixTimestamp() - time > gap) {
+            if (t.getTimeSinceRecordingStart() < startingFrom) continue;
+            if (t.getTimeSinceRecordingStart() - time > gap) {
                 return prevItem;
             }
-            time = t.getUnixTimestamp();
+            time = t.getTimeSinceRecordingStart();
             prevItem = t;
         }
         return prevItem;
@@ -163,7 +163,7 @@ public class PostProcessor {
                         item -> !item.LevelPaused && !item.LevelFinished && !item.LevelFailed && !item.LevelQuit && item.SongName != null && !item.SongName.isEmpty()
                 );
                 if (firstItem == null) break;
-                currentTime = firstItem.UnixTimestamp;
+                currentTime = firstItem.TimeSinceRecordingStart;
                 LevelInfo lastLevelInfo = findItemAfterTimestamp(
                         data.levelInfos,
                         currentTime,
@@ -173,21 +173,21 @@ public class PostProcessor {
                 long songEnd;
                 if (lastLevelInfo == null) {
                     LiveData lastLiveData = findLastItemInPlaySession(data.liveData, currentTime, 2500L);
-                    songEnd = lastLiveData.UnixTimestamp;
+                    songEnd = lastLiveData.TimeSinceRecordingStart;
                 } else if (lastLevelInfo.SongName == null || lastLevelInfo.SongName.isEmpty()) {
                     // likely game crashed and restarted
-                    LiveData lastLiveData = findItemBeforeTimestamp(data.liveData, lastLevelInfo.UnixTimestamp);
-                    songEnd = lastLiveData.UnixTimestamp;
-                    lastLevelInfo = findItemBeforeTimestamp(data.levelInfos, lastLevelInfo.UnixTimestamp);
+                    LiveData lastLiveData = findItemBeforeTimestamp(data.liveData, lastLevelInfo.TimeSinceRecordingStart);
+                    songEnd = lastLiveData.TimeSinceRecordingStart;
+                    lastLevelInfo = findItemBeforeTimestamp(data.levelInfos, lastLevelInfo.TimeSinceRecordingStart);
                 } else {
-                    songEnd = lastLevelInfo.UnixTimestamp;
+                    songEnd = lastLevelInfo.TimeSinceRecordingStart;
                 }
                 List<LiveData> liveData = getItemsInRange(data.liveData, currentTime, songEnd);
                 LevelInfo levelInfo = lastLevelInfo != null ? lastLevelInfo : findItemBeforeTimestamp(data.levelInfos, songEnd);
                 playSessions.add(new PlaySession(
                         firstItem.UnixTimestamp,
-                        firstItem.UnixTimestamp - data.startTime,
-                        songEnd - firstItem.UnixTimestamp,
+                        firstItem.TimeSinceRecordingStart,
+                        songEnd - firstItem.TimeSinceRecordingStart,
                         levelInfo,
                         liveData
                 ));
