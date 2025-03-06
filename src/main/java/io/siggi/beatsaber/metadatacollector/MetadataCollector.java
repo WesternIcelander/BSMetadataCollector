@@ -230,6 +230,6 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
     private long recordingStartTime = 0L;
     private long timeSinceRecordingStart() {
         if (out == null) return 0L;
-        return System.nanoTime() - recordingStartTime / 1_000_000L;
+        return (System.nanoTime() - recordingStartTime) / 1_000_000L;
     }
 }
