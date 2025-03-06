@@ -62,8 +62,8 @@ public class PostProcessor {
             data.startTime = readLong(in);
             while (true) {
                 int type = in.read();
-                long time = fileVersion >= 1 ? readLong(in) : 0L;
                 if (type == -1) break;
+                long time = fileVersion >= 1 ? readLong(in) : 0L;
                 if (type == 1) {
                     LevelInfo levelInfo = gson.fromJson(readString(in), LevelInfo.class);
                     levelInfo.TimeSinceRecordingStart = time == 0L ? (levelInfo.UnixTimestamp - data.startTime) : time;
