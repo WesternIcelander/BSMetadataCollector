@@ -5,7 +5,6 @@ import io.siggi.beatsaber.metadatacollector.data.PlaySession;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LevelInfo;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LiveData;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.Timestamped;
-import io.siggi.tools.io.IO;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,20 +13,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
 import static io.siggi.beatsaber.metadatacollector.Util.gson;
-import static io.siggi.beatsaber.metadatacollector.Util.readInt;
-import static io.siggi.beatsaber.metadatacollector.Util.readLong;
-import static io.siggi.beatsaber.metadatacollector.Util.readString;
 import static io.siggi.beatsaber.metadatacollector.Util.timecode;
 
 public class PostProcessor {
-
-    private static final byte[] BSMDC_HEADER = "BSMDC\n".getBytes(StandardCharsets.UTF_8);
-    private static final int MAX_SUPPORTED_VERSION = 1;
 
     public static void process(File file) throws IOException {
         file = file.getAbsoluteFile();
@@ -48,32 +40,9 @@ public class PostProcessor {
 
         File json = new File(file.getParentFile(), baseName + ".json");
 
-        CollectedMetadata data = new CollectedMetadata();
+        CollectedMetadata data;
         try (FileInputStream in = new FileInputStream(file)) {
-            byte[] header = new byte[BSMDC_HEADER.length];
-            IO.readFully(in, header);
-            if (!Arrays.equals(header, BSMDC_HEADER)) {
-                throw new IOException("Not BSMDC file!");
-            }
-            int fileVersion = readInt(in);
-            if (fileVersion > MAX_SUPPORTED_VERSION) {
-                throw new IOException("BSMDC file created by a newer version not supported.");
-            }
-            data.startTime = readLong(in);
-            while (true) {
-                int type = in.read();
-                if (type == -1) break;
-                long time = fileVersion >= 1 ? readLong(in) : 0L;
-                if (type == 1) {
-                    LevelInfo levelInfo = gson.fromJson(readString(in), LevelInfo.class);
-                    levelInfo.TimeSinceRecordingStart = time == 0L ? (levelInfo.UnixTimestamp - data.startTime) : time;
-                    data.levelInfos.add(levelInfo);
-                } else if (type == 2) {
-                    LiveData liveData = gson.fromJson(readString(in), LiveData.class);
-                    liveData.TimeSinceRecordingStart = time == 0L ? (liveData.UnixTimestamp - data.startTime) : time;
-                    data.liveData.add(liveData);
-                }
-            }
+            data = CollectedMetadata.read(in);
         }
 
         try (FileOutputStream out = new FileOutputStream(json)) {
