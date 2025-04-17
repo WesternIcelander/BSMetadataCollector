@@ -112,7 +112,7 @@ public class PostProcessor {
         return prevItem;
     }
 
-    private static List<PlaySession> findPlaySessions(CollectedMetadata data) {
+    public static List<PlaySession> findPlaySessions(CollectedMetadata data) {
         List<PlaySession> playSessions = new ArrayList<>();
         long currentTime = 0L;
         while (true) {
@@ -159,7 +159,7 @@ public class PostProcessor {
         return playSessions;
     }
 
-    private static List<Chapter> generateChapters(List<PlaySession> playSessions) {
+    public static List<Chapter> generateChapters(List<PlaySession> playSessions) {
         ArrayList<Chapter> chapters = new ArrayList<>((playSessions.size() * 2) + 1);
         chapters.add(new Chapter("Pre-game", 0L));
         int intermissionCount = 0;
