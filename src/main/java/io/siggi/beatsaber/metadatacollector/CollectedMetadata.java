@@ -26,6 +26,7 @@ public class CollectedMetadata {
         Deduplicator<String> deduplicator = new Deduplicator<>(false);
 
         int fileVersion = in.fileVersion();
+        data.startTime = in.startTime();
 
         BSMDCObject object;
         while ((object = in.read()) != null) {
