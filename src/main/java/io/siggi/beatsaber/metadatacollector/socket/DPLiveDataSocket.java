@@ -16,7 +16,7 @@ public class DPLiveDataSocket extends WSSocket {
             public void receivedMessage(SimpleWebsocket socket, WebSocketMessage message) {
                 if (!message.isText()) return;
                 LiveData liveData = Util.gson.fromJson(message.getText(), LiveData.class);
-                listener.liveDataReceived(liveData);
+                listener.liveDataReceived(message.getText(), liveData);
             }
 
             @Override
@@ -27,6 +27,6 @@ public class DPLiveDataSocket extends WSSocket {
 
     @FunctionalInterface
     public interface Listener {
-        void liveDataReceived(LiveData liveData);
+        void liveDataReceived(String rawJson, LiveData liveData);
     }
 }

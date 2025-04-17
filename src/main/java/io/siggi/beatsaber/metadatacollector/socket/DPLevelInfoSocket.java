@@ -16,7 +16,7 @@ public class DPLevelInfoSocket extends WSSocket {
             public void receivedMessage(SimpleWebsocket socket, WebSocketMessage message) {
                 if (!message.isText()) return;
                 LevelInfo levelInfo = Util.gson.fromJson(message.getText(), LevelInfo.class);
-                listener.levelInfoReceived(levelInfo);
+                listener.levelInfoReceived(message.getText(), levelInfo);
             }
 
             @Override
@@ -27,6 +27,6 @@ public class DPLevelInfoSocket extends WSSocket {
 
     @FunctionalInterface
     public interface Listener {
-        void levelInfoReceived(LevelInfo levelInfo);
+        void levelInfoReceived(String rawJson, LevelInfo levelInfo);
     }
 }

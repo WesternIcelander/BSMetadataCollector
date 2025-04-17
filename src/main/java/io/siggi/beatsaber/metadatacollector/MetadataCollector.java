@@ -19,8 +19,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
-import static io.siggi.beatsaber.metadatacollector.Util.gson;
-
 public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveDataSocket.Listener, OBSSocket.Listener {
 
     private final Config config;
@@ -101,7 +99,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
     }
 
     @Override
-    public void levelInfoReceived(LevelInfo levelInfo) {
+    public void levelInfoReceived(String rawJson, LevelInfo levelInfo) {
         synchronized (lock) {
             if (out == null) {
                 if (levelInfo.SongName != null && !levelInfo.SongName.isEmpty() && !warnedRecording) {
@@ -112,7 +110,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
                 return;
             }
             try {
-                out.write(new BSMDCObject(1, gson.toJson(levelInfo), timeSinceRecordingStart()));
+                out.write(new BSMDCObject(1, rawJson, timeSinceRecordingStart()));
                 if (!matches(lastLevelInfo, levelInfo) && !levelInfo.SongName.isEmpty()) {
                     gameplayWasDetected = true;
                     lastLevelInfo = levelInfo;
@@ -134,11 +132,11 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
     }
 
     @Override
-    public void liveDataReceived(LiveData liveData) {
+    public void liveDataReceived(String rawJson, LiveData liveData) {
         synchronized (lock) {
             if (out == null) return;
             try {
-                out.write(new BSMDCObject(2, gson.toJson(liveData), timeSinceRecordingStart()));
+                out.write(new BSMDCObject(2, rawJson, timeSinceRecordingStart()));
             } catch (Exception e) {
                 e.printStackTrace();
                 closeOut();
