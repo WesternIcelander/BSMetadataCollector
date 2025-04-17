@@ -1,5 +1,6 @@
 package io.siggi.beatsaber.metadatacollector;
 
+import io.siggi.beatsaber.metadatacollector.bsmdcstream.BSMDCInStream;
 import io.siggi.beatsaber.metadatacollector.data.Chapter;
 import io.siggi.beatsaber.metadatacollector.data.PlaySession;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LevelInfo;
@@ -23,51 +24,41 @@ public class PostProcessor {
 
     public static void process(File file) throws IOException {
         file = file.getAbsoluteFile();
-        String fileName = file.getName();
-        int dotPos = fileName.lastIndexOf(".");
-        String extension = fileName.substring(dotPos + 1);
-        if (extension.equalsIgnoreCase("bsmdc")) {
-            processBsmdc(file);
-        } else if (extension.equalsIgnoreCase("json")) {
-            processJson(file);
-        }
-    }
-
-    private static void processBsmdc(File file) throws IOException {
+        File parent = file.getParentFile();
         String fileName = file.getName();
         int dotPos = fileName.lastIndexOf(".");
         String baseName = fileName.substring(0, dotPos);
-
-        File json = new File(file.getParentFile(), baseName + ".json");
-
+        String extension = fileName.substring(dotPos + 1);
         CollectedMetadata data;
-        try (FileInputStream in = new FileInputStream(file)) {
-            data = CollectedMetadata.read(in);
+        if (extension.equalsIgnoreCase("bsmdc")) {
+            try (BSMDCInStream in = new BSMDCInStream(new FileInputStream(file))) {
+                data = CollectedMetadata.read(in);
+            }
+        } else if (extension.equalsIgnoreCase("json")) {
+            try (FileReader in = new FileReader(file)) {
+                data = gson.fromJson(in, CollectedMetadata.class);
+            }
+        } else {
+            throw new IllegalArgumentException("Unsupported file extension: " + extension);
         }
 
-        try (FileOutputStream out = new FileOutputStream(json)) {
+        if (extension.equals("bsmdc")) {
+            writeJson(data, new File(parent, baseName + ".json"));
+        }
+        writeChapters(data, new File(parent, baseName + "-chapters.txt"));
+    }
+
+    private static void writeJson(CollectedMetadata data, File file) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(file)) {
             out.write(gson.toJson(data).getBytes(StandardCharsets.UTF_8));
         }
-
-        processJson(json);
     }
 
-    private static void processJson(File file) throws IOException {
-        String fileName = file.getName();
-        int dotPos = fileName.lastIndexOf(".");
-        String baseName = fileName.substring(0, dotPos);
-
-        File parent = file.getParentFile();
-
-        CollectedMetadata data;
-        try (FileReader in = new FileReader(file)) {
-            data = gson.fromJson(in, CollectedMetadata.class);
-        }
-
+    private static void writeChapters(CollectedMetadata data, File file) throws IOException {
         List<PlaySession> playSessions = findPlaySessions(data);
 
         List<Chapter> chapters = generateChapters(playSessions);
-        try (FileOutputStream out = new FileOutputStream(new File(parent, baseName + "-chapters.txt"))) {
+        try (FileOutputStream out = new FileOutputStream(file)) {
             int i = 0;
             for (Chapter chapter : chapters) {
                 String chapterId = "CHAPTER" + (i < 10 ? "0" : "") + i;
