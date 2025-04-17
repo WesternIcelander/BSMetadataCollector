@@ -25,7 +25,7 @@ public class CollectedMetadata {
 
         Deduplicator<String> deduplicator = new Deduplicator<>(false);
 
-        int fileVersion = in.fileVersion();
+        data.fileVersion = in.fileVersion();
         data.startTime = in.startTime();
 
         BSMDCObject object;
@@ -33,14 +33,14 @@ public class CollectedMetadata {
             switch (object.type()) {
                 case 1: {
                     LevelInfo levelInfo = gson.fromJson(object.payload(), LevelInfo.class);
-                    levelInfo.TimeSinceRecordingStart = fileVersion >= 1L ? object.timeOffset() : (levelInfo.UnixTimestamp - data.startTime);
+                    levelInfo.TimeSinceRecordingStart = data.fileVersion >= 1L ? object.timeOffset() : (levelInfo.UnixTimestamp - data.startTime);
                     deduplicateStrings(deduplicator, levelInfo);
                     data.levelInfos.add(levelInfo);
                 }
                 break;
                 case 2: {
                     LiveData liveData = gson.fromJson(object.payload(), LiveData.class);
-                    liveData.TimeSinceRecordingStart = fileVersion >= 1L ? object.timeOffset() : (liveData.UnixTimestamp - data.startTime);
+                    liveData.TimeSinceRecordingStart = data.fileVersion >= 1L ? object.timeOffset() : (liveData.UnixTimestamp - data.startTime);
                     deduplicateStrings(deduplicator, liveData);
                     data.liveData.add(liveData);
                 }
@@ -64,6 +64,7 @@ public class CollectedMetadata {
     }
 
     public long startTime;
+    public int fileVersion;
     public final List<LevelInfo> levelInfos = new ArrayList<>();
     public final List<LiveData> liveData = new ArrayList<>();
 }
