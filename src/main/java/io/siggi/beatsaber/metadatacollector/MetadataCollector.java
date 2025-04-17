@@ -1,5 +1,7 @@
 package io.siggi.beatsaber.metadatacollector;
 
+import io.siggi.beatsaber.metadatacollector.bsmdcstream.BSMDCObject;
+import io.siggi.beatsaber.metadatacollector.bsmdcstream.BSMDCOutStream;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LevelInfo;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LiveData;
 import io.siggi.beatsaber.metadatacollector.socket.DPLevelInfoSocket;
@@ -15,18 +17,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static io.siggi.beatsaber.metadatacollector.Util.gson;
-import static io.siggi.beatsaber.metadatacollector.Util.writeInt;
-import static io.siggi.beatsaber.metadatacollector.Util.writeLong;
-import static io.siggi.beatsaber.metadatacollector.Util.writeString;
 
 public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveDataSocket.Listener, OBSSocket.Listener {
-
-    private static final byte[] BSMDC_HEADER = "BSMDC\n".getBytes(StandardCharsets.UTF_8);
-    private static final int FILE_VERSION = 1;
 
     private final Config config;
     private final OBSSocket obsSocket;
@@ -37,7 +32,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
     private boolean stopped = false;
 
     private final Object lock = new Object();
-    private FileOutputStream out;
+    private BSMDCOutStream out;
     private boolean gameplayWasDetected = false;
     private File currentOutput;
 
@@ -117,9 +112,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
                 return;
             }
             try {
-                out.write(1);
-                writeLong(out, timeSinceRecordingStart());
-                writeString(out, gson.toJson(levelInfo));
+                out.write(new BSMDCObject(1, gson.toJson(levelInfo), timeSinceRecordingStart()));
                 if (!matches(lastLevelInfo, levelInfo) && !levelInfo.SongName.isEmpty()) {
                     gameplayWasDetected = true;
                     lastLevelInfo = levelInfo;
@@ -145,9 +138,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
         synchronized (lock) {
             if (out == null) return;
             try {
-                out.write(2);
-                writeLong(out, timeSinceRecordingStart());
-                writeString(out, gson.toJson(liveData));
+                out.write(new BSMDCObject(2, gson.toJson(liveData), timeSinceRecordingStart()));
             } catch (Exception e) {
                 e.printStackTrace();
                 closeOut();
@@ -177,10 +168,7 @@ public class MetadataCollector implements DPLevelInfoSocket.Listener, DPLiveData
             }
             this.currentOutput = target;
             try {
-                out = new FileOutputStream(target);
-                out.write(BSMDC_HEADER);
-                writeInt(out, FILE_VERSION);
-                writeLong(out, System.currentTimeMillis());
+                out = new BSMDCOutStream(new FileOutputStream(target), System.currentTimeMillis());
             } catch (Exception e) {
                 e.printStackTrace();
             }
