@@ -115,6 +115,13 @@ public class PostProcessor {
     public static List<PlaySession> findPlaySessions(CollectedMetadata data) {
         List<PlaySession> playSessions = new ArrayList<>();
         long currentTime = 0L;
+        if (!data.liveData.isEmpty()) {
+            currentTime = Math.min(currentTime, data.liveData.get(0).TimeSinceRecordingStart);
+        }
+        if (!data.levelInfos.isEmpty()) {
+            currentTime = Math.min(currentTime, data.levelInfos.get(0).TimeSinceRecordingStart);
+        }
+        currentTime -= 1L;
         while (true) {
             try {
                 LevelInfo firstItem = findItemAfterTimestamp(
@@ -193,9 +200,15 @@ public class PostProcessor {
             chapterName.append(Math.round(lastLiveData.Accuracy * 100.0) / 100.0);
             chapterName.append("% ");
             chapterName.append(lastLiveData.Score);
+            long chapterTime = session.videoStartTime;
+            if (chapterTime <= 0L) {
+                intermissionCount = 0;
+                chapters.clear();
+                chapterTime = 0L;
+            }
             chapters.add(new Chapter(
                     chapterName.toString(),
-                    session.videoStartTime
+                    chapterTime
             ));
             intermissionCount += 1;
             chapters.add(new Chapter("Intermission " + intermissionCount, session.videoStartTime + session.length));
