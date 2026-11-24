@@ -3,6 +3,7 @@ package io.siggi.beatsaber.metadatacollector;
 import io.siggi.beatsaber.metadatacollector.bsmdcstream.BSMDCInStream;
 import io.siggi.beatsaber.metadatacollector.data.Chapter;
 import io.siggi.beatsaber.metadatacollector.data.PlaySession;
+import io.siggi.beatsaber.metadatacollector.data.datapuller.ELiveDataEventTriggers;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LevelInfo;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.LiveData;
 import io.siggi.beatsaber.metadatacollector.data.datapuller.Timestamped;
@@ -112,6 +113,48 @@ public class PostProcessor {
         return prevItem;
     }
 
+    /**
+     * Find the first LiveData after the start of a play session that indicates a new attempt of a level has begun,
+     * which happens when the level is restarted from the pause menu. A restart does not set any of the end flags in
+     * LevelInfo, but DataPuller resets LiveData just like it does at the start of a level: the first LiveData of a new
+     * attempt has an EventTrigger of Unknown, and its counters (TimeElapsed, NotesSpawned) go back to 0.
+     */
+    private static LiveData findLevelRestart(List<LiveData> items, long sessionStart, long notAfter) {
+        LiveData prevItem = null;
+        for (LiveData t : items) {
+            if (t.TimeSinceRecordingStart <= sessionStart) continue;
+            if (t.TimeSinceRecordingStart > notAfter) break;
+            // the first LiveData of the play session is the marker for this session's own start
+            if (prevItem != null && (t.EventTrigger == ELiveDataEventTriggers.Unknown
+                    || t.TimeElapsed < prevItem.TimeElapsed
+                    || t.NotesSpawned < prevItem.NotesSpawned)) {
+                return t;
+            }
+            prevItem = t;
+        }
+        return null;
+    }
+
+    /**
+     * Find when a restart happened. When the restart button is clicked, the LevelInfo goes from paused to unpaused
+     * a few milliseconds before the LiveData restart marker is received, so use that LevelInfo if one is present.
+     */
+    private static long findRestartTime(List<LevelInfo> levelInfos, long sessionStart, long restartMarkerTime) {
+        LevelInfo unpause = null;
+        boolean paused = false;
+        for (LevelInfo t : levelInfos) {
+            if (t.TimeSinceRecordingStart <= sessionStart) continue;
+            if (t.TimeSinceRecordingStart > restartMarkerTime) break;
+            if (t.LevelPaused) {
+                paused = true;
+                unpause = null;
+            } else if (paused && unpause == null) {
+                unpause = t;
+            }
+        }
+        return unpause != null ? unpause.TimeSinceRecordingStart : restartMarkerTime;
+    }
+
     public static List<PlaySession> findPlaySessions(CollectedMetadata data) {
         List<PlaySession> playSessions = new ArrayList<>();
         long currentTime = 0L;
@@ -149,6 +192,14 @@ public class PostProcessor {
                 } else {
                     songEnd = lastLevelInfo.TimeSinceRecordingStart;
                 }
+                boolean restarted = false;
+                LiveData restartMarker = findLevelRestart(data.liveData, currentTime, songEnd);
+                if (restartMarker != null) {
+                    restarted = true;
+                    long restartTime = findRestartTime(data.levelInfos, currentTime, restartMarker.TimeSinceRecordingStart);
+                    songEnd = restartTime - 1L;
+                    lastLevelInfo = findItemBeforeTimestamp(data.levelInfos, songEnd);
+                }
                 List<LiveData> liveData = getItemsInRange(data.liveData, currentTime, songEnd);
                 LevelInfo levelInfo = lastLevelInfo != null ? lastLevelInfo : findItemBeforeTimestamp(data.levelInfos, songEnd);
                 playSessions.add(new PlaySession(
@@ -156,7 +207,8 @@ public class PostProcessor {
                         firstItem.TimeSinceRecordingStart,
                         songEnd - firstItem.TimeSinceRecordingStart,
                         levelInfo,
-                        liveData
+                        liveData,
+                        restarted
                 ));
                 currentTime = songEnd;
             } catch (Exception e) {
@@ -174,7 +226,9 @@ public class PostProcessor {
             LevelInfo levelInfo = session.levelInfo;
             LiveData lastLiveData = session.liveData.get(session.liveData.size() - 1);
             StringBuilder chapterName = new StringBuilder();
-            if (levelInfo.LevelFailed) {
+            if (session.restarted) {
+                chapterName.append("(restart) ");
+            } else if (levelInfo.LevelFailed) {
                 chapterName.append("(fail) ");
             } else if (levelInfo.LevelQuit) {
                 chapterName.append("(quit) ");
@@ -210,8 +264,11 @@ public class PostProcessor {
                     chapterName.toString(),
                     chapterTime
             ));
-            intermissionCount += 1;
-            chapters.add(new Chapter("Intermission " + intermissionCount, session.videoStartTime + session.length));
+            // a restarted level is immediately followed by the next attempt, so there's no intermission
+            if (!session.restarted) {
+                intermissionCount += 1;
+                chapters.add(new Chapter("Intermission " + intermissionCount, session.videoStartTime + session.length));
+            }
         }
         return chapters;
     }
