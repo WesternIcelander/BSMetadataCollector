@@ -1,6 +1,10 @@
 package io.siggi.beatsaber.metadatacollector;
 
+import io.siggi.beatsaber.metadatacollector.bsmdcstream.BSMDCInStream;
+import io.siggi.beatsaber.metadatacollector.data.datapuller.LiveData;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -12,11 +16,31 @@ import static io.siggi.beatsaber.metadatacollector.Util.gsonPretty;
 
 public class Main {
     public static void main(String[] args) {
-        if (args.length == 1) {
-            try {
-                PostProcessor.process(new File(args[0]));
-            } catch (Exception e) {
-                e.printStackTrace();
+        if (args.length > 0) {
+            boolean printScore = false;
+            for (String arg : args) {
+                if (arg.equals("-p")) {
+                    printScore = true;
+                    continue;
+                }
+                try {
+                    if (printScore) {
+                        CollectedMetadata data;
+                        try (BSMDCInStream in = new BSMDCInStream(new FileInputStream(arg))) {
+                            data = CollectedMetadata.read(in);
+                        }
+                        int lastScore = 0;
+                        for (LiveData data1 : data.liveData) {
+                            if (lastScore == data1.Score) continue;
+                            lastScore = data1.Score;
+                            System.out.println((data1.TimeSinceRecordingStart / 1000L) + ": " + data1.Score);
+                        }
+                    } else {
+                        PostProcessor.process(new File(arg));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
             return;
         }
